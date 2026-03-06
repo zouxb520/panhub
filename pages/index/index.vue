@@ -120,9 +120,6 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
-import SearchBox from "./SearchBox.vue";
-import ResultGroup from "./ResultGroup.vue";
-import HotSearchSection from "./HotSearchSection.vue";
 import { PLATFORM_INFO } from "~/config/plugins";
 
 const config = useRuntimeConfig();
