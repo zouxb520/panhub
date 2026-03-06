@@ -478,6 +478,7 @@ export function useSearch() {
   const hasResults = computed(() => Object.keys(state.value.merged).length > 0);
 
   return {
+    state,
     loading,
     deepLoading,
     paused,
