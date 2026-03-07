@@ -4,14 +4,18 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
 
-# 复制所有文件
+# 启用 Corepack 并使用 pnpm（与项目一致）
+RUN corepack enable && corepack prepare pnpm@9 --activate
+
+# 先复制依赖文件，利用层缓存
+COPY package.json pnpm-lock.yaml ./
+
+# 安装依赖（frozen-lockfile 确保与 pnpm-lock 完全一致）
+RUN pnpm install --frozen-lockfile
+
+# 复制源码并构建
 COPY . .
-
-# 安装依赖
-RUN npm install --prefer-offline --no-audit --no-fund
-
-# 构建应用
-RUN NITRO_PRESET=node-server npm run build
+RUN NITRO_PRESET=node-server pnpm run build
 
 # 运行阶段：Alpine 仅 ~50MB
 FROM node:20-alpine AS runner
