@@ -29,7 +29,7 @@ export interface DoubanHotPageResult {
   hasMore: boolean;
 }
 
-const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 小时（豆瓣新片榜更新较慢）
+const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 小时（豆瓣榜单更新较慢，一天更新一次即可）
 const cache = new MemoryCache<DoubanHotResult>({ maxSize: 10 });
 const UA =
   "Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1";
@@ -292,15 +292,26 @@ async function scrapeDoubanUsBox(): Promise<DoubanHotItem[]> {
           const desc = boxOffice ? `票房 ${boxOffice}` : "";
 
           const img = dom.find("img");
-          const cover =
-            img.attr("data-src") ||
-            img.attr("data-original") ||
-            img.attr("src") ||
-            undefined;
+          let coverUrl: string | undefined = undefined;
 
-          const coverUrl = cover
-            ? fixDoubanCoverUrl(cover.startsWith("//") ? "https:" + cover : cover)
-            : undefined;
+          // 检查是否有图片
+          if (img.length > 0) {
+            const rawCover =
+              img.attr("data-src") ||
+              img.attr("data-original") ||
+              img.attr("src") ||
+              "";
+
+            // 过滤掉标记图标（box_new.png 等非电影封面）
+            const isIconMarker = rawCover.includes("box_new.png") ||
+                               rawCover.includes("box_hot.png") ||
+                               rawCover.includes("/pics/box_") ||
+                               rawCover.includes("/f/vendors/");
+
+            if (!isIconMarker && rawCover) {
+              coverUrl = fixDoubanCoverUrl(rawCover.startsWith("//") ? "https:" + rawCover : rawCover);
+            }
+          }
 
           items.push({
             id: id || undefined,
@@ -309,7 +320,7 @@ async function scrapeDoubanUsBox(): Promise<DoubanHotItem[]> {
             desc,
             url: href || `https://movie.douban.com/subject/${id}/`,
           });
-          // 如果没有图片，记录ID以便批量获取
+          // 如果没有真实封面，记录ID以便批量获取
           if (!coverUrl && id) {
             idsWithoutCover.push(id);
           }
