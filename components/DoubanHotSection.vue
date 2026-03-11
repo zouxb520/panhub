@@ -229,6 +229,9 @@ function setupLoadMoreObserver() {
     const target = loadTriggerRef.value;
     if (!target) return;
 
+    // 检测是否为移动设备
+    const isMobile = window.innerWidth < 640;
+
     loadObserver.value = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting && hasMore.value && !loading.value && !loadingMore.value) {
@@ -237,8 +240,10 @@ function setupLoadMoreObserver() {
       },
       {
         root: null,
-        rootMargin: "100px",
-        threshold: 0.1,
+        // 移动端使用更大的 rootMargin 以提前触发加载
+        rootMargin: isMobile ? "200px" : "150px",
+        // 移动端使用更低的 threshold，PC端使用标准的 0.1
+        threshold: isMobile ? 0.01 : 0.1,
       }
     );
 
@@ -310,7 +315,7 @@ defineExpose({ init, refresh });
 
 .tab-button {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 6px;
   padding: 8px 14px;
   font-size: 13px;

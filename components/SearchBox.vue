@@ -30,9 +30,9 @@
           @touchend="handleTouchEnd" />
 
         <div class="search-actions">
-          <!-- 重置按钮 - 搜索过程中始终显示 -->
+          <!-- 重置按钮 - 搜索后显示 -->
           <button
-            v-if="loading"
+            v-if="searched"
             class="action-btn reset"
             type="button"
             @click="
@@ -140,6 +140,7 @@ const props = defineProps<{
   loading: boolean;
   paused: boolean;
   placeholder: string;
+  searched: boolean;
 }>();
 const emit = defineEmits(["update:modelValue", "search", "reset", "pause", "continue"]);
 
@@ -466,9 +467,16 @@ onMounted(() => {
     font-size: 15px;
   }
 
+  .search-actions {
+    gap: 6px; /* 减小间距以确保按钮居中 */
+  }
+
   .action-btn {
     padding: 8px 10px;
     font-size: 13px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .action-btn.primary .btn-text,
