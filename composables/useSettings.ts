@@ -24,6 +24,9 @@ export interface UseSettingsReturn {
   onClearAllTg: () => void;
 }
 
+// 模块级单例：确保 app.vue、index.vue、SettingsDrawer 等共用同一份 settings
+let settingsSingleton: ReturnType<typeof ref<UserSettings>> | null = null;
+
 export function useSettings(): UseSettingsReturn {
   const config = useRuntimeConfig();
 
@@ -36,13 +39,20 @@ export function useSettings(): UseSettingsReturn {
     return channelsConfig.defaultChannels;
   });
 
-  // 状态
-  const settings = ref<UserSettings>({
-    enabledTgChannels: [...defaultTgChannels.value],
+  // 单例 settings：全应用共享，设置修改后搜索能立即用到最新配置
+  if (!settingsSingleton) {
+    settingsSingleton = ref<UserSettings>({
+    enabledTgChannels: [
+      ...(defaultTgChannels.value?.length
+        ? defaultTgChannels.value
+        : channelsConfig.defaultChannels),
+    ],
     enabledPlugins: [...DEFAULT_USER_SETTINGS.enabledPlugins],
     concurrency: DEFAULT_USER_SETTINGS.concurrency,
     pluginTimeoutMs: DEFAULT_USER_SETTINGS.pluginTimeoutMs,
   });
+  }
+  const settings = settingsSingleton;
 
   // 加载设置
   function loadSettings(): void {
@@ -58,7 +68,7 @@ export function useSettings(): UseSettingsReturn {
       const validated: UserSettings = {
         enabledTgChannels: Array.isArray(parsed.enabledTgChannels)
           ? parsed.enabledTgChannels.filter((x: unknown) => typeof x === "string")
-          : [...defaultTgChannels.value],
+          : [...(defaultTgChannels.value?.length ? defaultTgChannels.value : channelsConfig.defaultChannels)],
         enabledPlugins: Array.isArray(parsed.enabledPlugins)
           ? parsed.enabledPlugins.filter((x: unknown) => typeof x === "string")
           : [...DEFAULT_USER_SETTINGS.enabledPlugins],
@@ -78,14 +88,17 @@ export function useSettings(): UseSettingsReturn {
         ALL_PLUGIN_NAMES.includes(name as any)
       );
 
-      // 确保至少有一个插件
-      if (validated.enabledPlugins.length === 0) {
+      // 仅当插件和 TG 都为空时补默认插件，否则尊重用户选择（如只选 TG 不选插件）
+      if (
+        validated.enabledPlugins.length === 0 &&
+        validated.enabledTgChannels.length === 0
+      ) {
         validated.enabledPlugins = [...DEFAULT_USER_SETTINGS.enabledPlugins];
       }
 
       settings.value = validated;
-    } catch (error) {
-      console.warn("[useSettings] Failed to load settings:", error);
+    } catch (_error) {
+      // Silent failure - settings will use defaults
     }
   }
 
@@ -95,8 +108,8 @@ export function useSettings(): UseSettingsReturn {
 
     try {
       localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(settings.value));
-    } catch (error) {
-      console.warn("[useSettings] Failed to save settings:", error);
+    } catch (_error) {
+      // Silent failure
     }
   }
 
@@ -106,12 +119,14 @@ export function useSettings(): UseSettingsReturn {
 
     try {
       localStorage.removeItem(STORAGE_KEYS.settings);
-    } catch (error) {
-      console.warn("[useSettings] Failed to remove settings:", error);
+    } catch (_error) {
+      // Silent failure
     }
 
     settings.value = {
-      enabledTgChannels: [...defaultTgChannels.value],
+      enabledTgChannels: [
+        ...(defaultTgChannels.value?.length ? defaultTgChannels.value : channelsConfig.defaultChannels),
+      ],
       enabledPlugins: [...DEFAULT_USER_SETTINGS.enabledPlugins],
       concurrency: DEFAULT_USER_SETTINGS.concurrency,
       pluginTimeoutMs: DEFAULT_USER_SETTINGS.pluginTimeoutMs,
@@ -137,7 +152,9 @@ export function useSettings(): UseSettingsReturn {
 
   // 全选 TG 频道
   function onSelectAllTg(): void {
-    settings.value.enabledTgChannels = [...defaultTgChannels.value];
+    settings.value.enabledTgChannels = [
+      ...(defaultTgChannels.value?.length ? defaultTgChannels.value : channelsConfig.defaultChannels),
+    ];
     saveSettings();
   }
 

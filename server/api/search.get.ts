@@ -1,4 +1,5 @@
 import { defineEventHandler, getQuery, sendError, createError } from "h3";
+import { requireSearchAuth } from "../utils/requireAuth";
 import { getOrCreateSearchService } from "../core/services";
 import type { GenericResponse, SearchRequest } from "../core/types/models";
 
@@ -12,6 +13,7 @@ function parseList(val: string | undefined): string[] | undefined {
 }
 
 export default defineEventHandler(async (event) => {
+  requireSearchAuth(event);
   const config = useRuntimeConfig();
   const service = getOrCreateSearchService(config);
   const q = getQuery(event);
@@ -55,12 +57,11 @@ export default defineEventHandler(async (event) => {
     ext,
   };
 
-  // 互斥逻辑
   if (req.src === "tg") req.plugins = undefined;
   else if (req.src === "plugin") req.channels = undefined;
   if (!req.res || req.res === "merge") req.res = "merged_by_type";
 
-  const result = await service.search(
+  const { response: result, warnings } = await service.searchWithWarnings(
     req.kw,
     req.channels,
     req.conc,
@@ -74,8 +75,13 @@ export default defineEventHandler(async (event) => {
 
   const resp: GenericResponse<typeof result> = {
     code: 0,
-    message: "success",
+    message: warnings.length > 0 ? "partial_success" : "success",
     data: result,
   };
+
+  if (warnings.length > 0) {
+    (resp as any).warnings = warnings;
+  }
+
   return resp;
 });
